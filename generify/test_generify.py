@@ -134,6 +134,15 @@ def test_tuples():
     assert ret == tuple([*val])
 
 
+def test_sets():
+    ret = generify(set([1, 2, 3]))
+    assert ret == set([1, 2, 3])
+
+    val = [1, 10.3, (1, "2", True)]
+    ret = generify(set(val))
+    assert ret == set([*val])
+
+
 def test_namedtuple():
     val_named = NamedT(0.5, (1, 2), Scalar())
 
