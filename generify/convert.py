@@ -1,12 +1,14 @@
 from collections.abc import Iterable
 import copy
 from enum import Enum
+from typing import Hashable
+from argparse import Namespace
 
 import numpy as np
 import pandas as pd
 
 
-def df_handler(df, path):
+def df_handler(df, path, log):
     is_simple_df = True
     for type in df.dtypes.tolist():
         if not np.issctype(type):
@@ -18,10 +20,12 @@ def df_handler(df, path):
         df_ret = df.copy()
         for column in df_ret.columns:
             if np.issctype(df_ret[column].dtypes):
+                if log:
+                    log(f"generify {path + [column]}: {df_ret[column].dtypes}")
                 continue
             row_list = []
-            for row in df_ret.index:
-                res = generify(df_ret[column][row], path, log=False)
+            for i, row in enumerate(df_ret.index):
+                res = generify(df_ret[column][row], path + [column, i], log=log)
                 row_list.append(res)
             df_ret[column] = row_list
         return df_ret
@@ -45,12 +49,17 @@ def generify(obj, path=[], log=None, ids=None):
         if obj is None:
             ret = obj
         elif isinstance(obj, pd.DataFrame):
-            ret = df_handler(obj, path)
+            ret = df_handler(obj, path, log=log)
         elif isinstance(obj, dict):
             is_rec = True
-            ret = copy.copy(obj)
-            for k in ret.keys():
-                ret[k] = generify(ret[k], path + [k], log=log, ids=ids)
+            ret = dict()
+            for k in obj.keys():
+                kk = generify(k, path + [f"key->{k}"], log=log, ids=ids)
+                v = obj[k]
+                if callable(v):
+                    continue
+                ret_val = generify(v, path + [k], log=log, ids=ids)
+                ret[kk] = ret_val
         elif isinstance(obj, list):
             is_rec = True
             for i in range(len(obj)):
@@ -68,6 +77,14 @@ def generify(obj, path=[], log=None, ids=None):
             for i in range(len(obj)):
                 ret[i] = generify(obj[i], path + [i], log=log, ids=ids)
             ret = tuple(ret)
+        elif isinstance(obj, set):
+            ret = set()
+            l = len(obj)
+            for i in range(l):
+                k = obj.pop()
+                k = generify(k, path + [i], log=log, ids=ids)
+                ret.add(k)
+            pass
         elif isinstance(obj, np.dtype):
             ret = obj
         elif isinstance(obj, np.ndarray):
@@ -77,11 +94,8 @@ def generify(obj, path=[], log=None, ids=None):
         elif np.isscalar(obj):
             ret = obj
         elif isinstance(obj, Enum):
-            ret = {
-                "name": obj.name,
-                "value": obj.value,
-                "class": obj.__class__.__name__,
-            }
+            # enum is converted to hashable type tuple
+            ret = (obj.name, obj.value, obj.__class__.__name__)
         elif isinstance(obj, Iterable):
             is_rec = True
             ret = generify(list(obj), path, log=log, ids=ids)
@@ -90,15 +104,16 @@ def generify(obj, path=[], log=None, ids=None):
             keys = [k for k in dir(obj) if not (k.startswith("__") and k.endswith("__"))]
             ret = dict()
             for k in keys:
-                k = generify(k, path + [f"key->{k}"], log=log, ids=ids)
+                kk = generify(k, path + [f"key->{k}"], log=log, ids=ids)
                 v = getattr(obj, k)
                 if callable(v):
                     continue
                 ret_val = generify(v, path + [k], log=log, ids=ids)
-                ret[k] = ret_val
+                ret[kk] = ret_val
         else:
             unsupported = True
     except Exception as ex:
+        raise ex
         ret = f"Failed generify, Exception: {ex}"
 
     if unsupported:
