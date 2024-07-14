@@ -44,8 +44,7 @@
             "name": "generify",
             "type": "debugpy",
             "request": "launch",
-            "module": "ataskq",
-            "args": ["run"],
+            "program": "generify/test_generify.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },

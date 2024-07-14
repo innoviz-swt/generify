@@ -1,0 +1,28 @@
+#/bin/bash
+set -e
+cd $(dirname $0)/..
+
+ver="${1:-0.0.0}"
+app=generify
+build=$(git rev-parse --short HEAD)
+
+# create version files
+echo ver $ver build $build
+
+echo "__version__ = '${ver}'" > ./$app/version.py
+echo "__build__ = '${build}'" >> ./$app/version.py
+
+sed -i "s/^version = \"0\.0\.0\"$/version = \"$ver\"/" pyproject.toml
+
+# publish package
+python -m pip install --upgrade pip
+python -m pip install build
+python -m build
+# python -m twine upload --repository pypi dist/*
+
+# remove version files
+rm ./$app/version.py
+sed -i "s/^version = \"$ver\"$/version = \"0\.0\.0\"/" pyproject.toml
+
+# remove egg info
+rm -rf  ./*.egg-info
