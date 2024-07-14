@@ -11,8 +11,16 @@ classifiers = [
 ]
 keywords=["python", "task", "queue", "distributed systems", "distributed computing"]
 dependencies = [
-    "numpy",
+    "numpy<2.0.0",
     "pandas",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest"
+]
+dev = [
+    "pre-commit"
 ]
 
 [project.urls]
