@@ -15,6 +15,14 @@ dependencies = [
     "pandas",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest"
+]
+dev = [
+    "pre-commit"
+]
+
 [project.urls]
 Homepage = "https://github.com/innoviz-swt/generify"
 Issues = "https://github.com/innoviz-swt/generify/issues"

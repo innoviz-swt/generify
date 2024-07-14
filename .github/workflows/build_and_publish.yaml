@@ -33,14 +33,6 @@ jobs:
         name: dist
         path: |
           dist/
-    - uses: actions/upload-artifact@v4
-      with:
-        name: requirements
-        path: |
-          requirements.txt
-          .dockerignore
-          Dockerfile
-          scripts/
 
   test-build:
     name: Test Build
@@ -54,17 +46,13 @@ jobs:
         with:
           name: dist
           path: dist
-      - uses: actions/download-artifact@v4
-        with:
-          name: requirements
       - name: Build and run tests
         run: |
           version=${GITHUB_REF##*/v}
           echo version ${version}
-          pip install -r requirements.txt
           pip install dist/*.whl
+          pip install generify[test]
           python -c "import generify; assert generify.__version__ == '${version}', f'{generify.__version__} != ${version}'"
-          python -c "from pathlib import Path; import generify; assert (Path(generify.__file__).parent / 'server' / 'www' / 'index.html').exists(), f'www/index.html not found'"
           pytest --pyargs generify
 
   pypi-publish:

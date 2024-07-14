@@ -21,7 +21,7 @@ jobs:
       - name: Build and run tests
         run: |
           python --version
-          python -m pip install -r requirements.txt
+          python -m pip install .[test]
           python -m pytest . -v --junitxml=tmp/report-${{ matrix.py-version }}.xml
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4
