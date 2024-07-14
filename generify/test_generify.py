@@ -189,6 +189,15 @@ def test_nested_object():
     assert ret == Nested()
 
 
+def test_circular_references():
+    # circular references - objects which points to self
+    ref = {"x": 3}
+    ref["ref"] = ref
+    ret = generify(ref)
+    assert ret["x"] == 3
+    assert ret["ref"] == f"oid-{id(ref)}"
+
+
 def test_mix():
     ret = generify(Mix())
     assert len(ret) == 1
