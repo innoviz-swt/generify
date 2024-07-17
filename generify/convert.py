@@ -68,9 +68,11 @@ def generify(obj, path=[], log=None, ids=None):
         elif (
             isinstance(obj, tuple) and hasattr(obj, "_asdict") and hasattr(obj, "_fields")
         ):  # checking if it is a namedtuple
-            ret = obj._asdict()
-            for key in ret.keys():
-                ret[key] = generify(ret[key], path + [key], log=log, ids=ids)
+            is_rec = True
+            ret = [None] * len(obj)
+            for i in range(len(obj)):
+                ret[i] = generify(obj[i], path + [i], log=log, ids=ids)
+            ret = obj.__class__(*ret)
         elif isinstance(obj, tuple):
             is_rec = True
             ret = [None] * len(obj)
@@ -95,7 +97,7 @@ def generify(obj, path=[], log=None, ids=None):
             ret = obj
         elif isinstance(obj, Enum):
             # enum is converted to hashable type tuple
-            ret = (obj.name, obj.value, obj.__class__.__name__)
+            ret = (obj.name, obj.value)
         elif isinstance(obj, Iterable):
             is_rec = True
             ret = generify(list(obj), path, log=log, ids=ids)
@@ -113,7 +115,7 @@ def generify(obj, path=[], log=None, ids=None):
         else:
             unsupported = True
     except Exception as ex:
-        raise ex
+        # raise ex
         ret = f"Failed generify, Exception: {ex}"
 
     if unsupported:
