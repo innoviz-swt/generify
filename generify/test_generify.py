@@ -5,7 +5,8 @@ import pytest
 import json
 
 
-from generify import generify, GenerifyJSONEncoder
+from generify import generify, GenerifyJSONEncoder, GenerifyException, GenerifyGetAttrException
+from generify.convert import TestException
 
 import numpy as np
 import pandas as pd
@@ -173,6 +174,34 @@ def test_circular_references():
     ret = generify(ref)
     assert ret["x"] == 3
     assert ret["ref"] == f"oid-{id(ref)}"
+
+
+def test_raise_exception():
+    # no exception
+    ret = generify(TestException(), raise_exception=False)
+    assert ret == "Failed generify, Exception: test exception"
+
+    # exception
+    with pytest.raises((GenerifyException)) as excinfo:
+        generify({"a": [0, TestException()]}, raise_exception=True)
+    assert "Failed generify ['a', 1]" == str(excinfo.value)
+
+
+class GetAttrTest:
+    @property
+    def test(self):
+        raise Exception("test exception")
+
+
+def test_raise_getattr_exception():
+    # no exception
+    ret = generify(GetAttrTest(), raise_getattr_exception=False)
+    assert ret["test"] == "Failed getattr, Exception: test exception"
+
+    # exception
+    with pytest.raises((GenerifyGetAttrException)) as excinfo:
+        generify({"a": GetAttrTest()}, raise_getattr_exception=True)
+    assert "Failed getattr ['a', 'test']" == str(excinfo.value)
 
 
 def test_mix():

@@ -1,11 +1,20 @@
 from collections.abc import Iterable
-import copy
 from enum import Enum
-from typing import Hashable
-from argparse import Namespace
 
 import numpy as np
 import pandas as pd
+
+
+class TestException:
+    pass
+
+
+class GenerifyException(Exception):
+    pass
+
+
+class GenerifyGetAttrException(Exception):
+    pass
 
 
 def df_handler(df, path, log):
@@ -31,7 +40,17 @@ def df_handler(df, path, log):
         return df_ret
 
 
-def generify(obj, path=[], log=None, ids=None):
+def generify(obj, path=[], log=None, ids=None, raise_exception=False, raise_getattr_exception=False):
+    def _generify(obj, path):
+        return generify(
+            obj,
+            path,
+            log=log,
+            ids=ids,
+            raise_exception=raise_exception,
+            raise_getattr_exception=raise_getattr_exception,
+        )
+
     unsupported = False
     is_rec = False
 
@@ -54,37 +73,38 @@ def generify(obj, path=[], log=None, ids=None):
             is_rec = True
             ret = dict()
             for k in obj.keys():
-                kk = generify(k, path + [f"key->{k}"], log=log, ids=ids)
+                kk = _generify(k, path + [f"key->{k}"])
                 v = obj[k]
                 if callable(v):
                     continue
-                ret_val = generify(v, path + [k], log=log, ids=ids)
+                ret_val = _generify(v, path + [k])
                 ret[kk] = ret_val
         elif isinstance(obj, list):
             is_rec = True
+            ret = [None] * len(obj)
             for i in range(len(obj)):
-                obj[i] = generify(obj[i], path + [i], log=log, ids=ids)
-            ret = obj
+                ret[i] = _generify(obj[i], path + [i])
         elif (
             isinstance(obj, tuple) and hasattr(obj, "_asdict") and hasattr(obj, "_fields")
         ):  # checking if it is a namedtuple
             is_rec = True
             ret = [None] * len(obj)
             for i in range(len(obj)):
-                ret[i] = generify(obj[i], path + [i], log=log, ids=ids)
+                ret[i] = _generify(obj[i], path + [i])
             ret = obj.__class__(*ret)
         elif isinstance(obj, tuple):
             is_rec = True
             ret = [None] * len(obj)
             for i in range(len(obj)):
-                ret[i] = generify(obj[i], path + [i], log=log, ids=ids)
+                ret[i] = _generify(obj[i], path + [i])
             ret = tuple(ret)
         elif isinstance(obj, set):
+            is_rec = True
             ret = set()
             l = len(obj)
             for i in range(l):
                 k = obj.pop()
-                k = generify(k, path + [i], log=log, ids=ids)
+                k = _generify(k, path + [i])
                 ret.add(k)
             pass
         elif isinstance(obj, np.dtype):
@@ -101,22 +121,37 @@ def generify(obj, path=[], log=None, ids=None):
         elif isinstance(obj, Iterable):
             is_rec = True
             ret = generify(list(obj), path, log=log, ids=ids)
+        elif isinstance(obj, TestException):
+            raise Exception("test exception")
         elif hasattr(obj, "__class__"):  # custom class, turn it into a dict
             is_rec = True
             keys = [k for k in dir(obj) if not (k.startswith("__") and k.endswith("__"))]
             ret = dict()
             for k in keys:
-                kk = generify(k, path + [f"key->{k}"], log=log, ids=ids)
-                v = getattr(obj, k)
+                kk = _generify(k, path + [f"key->{k}"])
+                try:
+                    v = getattr(obj, k)
+                except Exception as ex:
+                    if raise_getattr_exception:
+                        raise GenerifyGetAttrException(f"Failed getattr {path + [k]}") from ex
+                    v = f"Failed getattr, {ex.__class__.__name__}: {ex}"
                 if callable(v):
                     continue
-                ret_val = generify(v, path + [k], log=log, ids=ids)
+                ret_val = _generify(v, path + [k])
                 ret[kk] = ret_val
         else:
             unsupported = True
     except Exception as ex:
-        # raise ex
-        ret = f"Failed generify, Exception: {ex}"
+        # if getattr exception was raise keep perculating it
+        if isinstance(ex, GenerifyGetAttrException):
+            raise ex
+
+        if raise_exception:
+            # recursive exception catch
+            if isinstance(ex, GenerifyException):
+                raise ex
+            raise GenerifyException(f"Failed generify {path}") from ex
+        ret = f"Failed generify, {ex.__class__.__name__}: {ex}"
 
     if unsupported:
         raise RuntimeError(f"Unsupported type '{type(obj)}', path: {path}.")
