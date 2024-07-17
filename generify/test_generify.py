@@ -6,6 +6,7 @@ import json
 
 
 from generify import generify, GenerifyJSONEncoder
+from generify.convert import TestException
 
 import numpy as np
 import pandas as pd
@@ -173,6 +174,17 @@ def test_circular_references():
     ret = generify(ref)
     assert ret["x"] == 3
     assert ret["ref"] == f"oid-{id(ref)}"
+
+
+def test_exception():
+    # no exception
+    ret = generify(TestException(), raise_exception=False)
+    assert ret == "Failed generify, Exception: test exception"
+
+    # exception
+    with pytest.raises((AssertionError, Exception)) as excinfo:
+        generify({"a": [0, TestException()]}, raise_exception=True)
+    assert "Failed generify ['a', 1]" == str(excinfo.value)
 
 
 def test_mix():

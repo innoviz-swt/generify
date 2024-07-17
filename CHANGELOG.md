@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 ### Fixed
 
+## 0.1.2
+### Added
+- generify raise_exception flag, raising exception of failure:
+    ```
+    generic_obj = generify(obj, raise_exception=True)
+    ```
+### Changed
+### Fixed
+- fix list inplace change to content.
+
 ## 0.1.1
 ### Added
 - GenerifyJSONEncouder. usage:
