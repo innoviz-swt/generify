@@ -5,3 +5,4 @@ except Exception:
     __build__ = "dev"
 
 from .convert import generify
+from .json_encoder import GenerifyJSONEncoder

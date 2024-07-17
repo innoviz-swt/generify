@@ -1,7 +1,11 @@
 from collections import namedtuple
 from enum import Enum
+import pickle
+import pytest
+import json
 
-from generify import generify
+
+from generify import generify, GenerifyJSONEncoder
 
 import numpy as np
 import pandas as pd
@@ -12,9 +16,11 @@ class EnumA(Enum):
     B1 = 3
 
 
-GEN_A1 = ("A1", "a1_val", "EnumA")
+GEN_A1 = ("A1", "a1_val")
 
 NamedT = namedtuple("NamedT", "aa bb cc")
+N1 = NamedT(1, 2, EnumA.A1)
+GEN_N1 = NamedT(1, 2, GEN_A1)
 
 
 class Scalar:
@@ -49,40 +55,6 @@ class Nested:
 
     def __eq__(self, other: dict):
         return self.a == other["a"] and self.scalar == other["scalar"]
-
-
-class NumpyArray:
-    def __init__(self) -> None:
-        self.val_numpy_arr = np.array([1, 2, 3])
-        self.val_2d_numpy_arr = np.array([[1, 2, 3], [4, 5, 6]])
-
-
-class Dataframe:
-    def __init__(self) -> None:
-        self.val_simple_df = pd.DataFrame(
-            {
-                "a": [1, 2, 3],
-                "b": ["a1", "b3", "b4"],
-            }
-        )
-        self.val_test_objects = pd.DataFrame(
-            {
-                "rot": [a, b],
-                "float": [0.2, 3.5],
-            }
-        )
-        self.val_test_simple_header = pd.DataFrame(
-            {
-                1: ["one", "two"],
-                3.5: [0.2, 3.5],
-            }
-        )
-        self.val_test_nested = pd.DataFrame(
-            {
-                "hard": [["one", "two"], [a, b]],
-                "easy": [0.2, 3.5],
-            }
-        )
 
 
 class Mix:
@@ -147,7 +119,10 @@ def test_namedtuple():
     val_named = NamedT(0.5, (1, 2), Scalar())
 
     ret = generify(val_named)
-    assert ret == {"aa": 0.5, "bb": (1, 2), "cc": Scalar()}
+    assert ret == val_named
+    assert isinstance(ret.cc, dict)
+
+    assert generify(N1) == GEN_N1
 
 
 def test_dictionary():
@@ -157,6 +132,7 @@ def test_dictionary():
             "b": [1, 20.2, "dan", Scalar()],
             1: 500,
             EnumA.A1: 30,
+            N1: "hi",
         }
     )
     assert ret == {
@@ -164,6 +140,7 @@ def test_dictionary():
         "b": [1, 20.2, "dan", Scalar()],
         1: 500,
         GEN_A1: 30,
+        GEN_N1: "hi",
     }
 
 
@@ -209,9 +186,28 @@ def test_mix():
     assert ret["val"]["v_mix1"] == [5, Scalar(), set(["a", 2])]
 
 
+def test_mix_pickle():
+    mix = generify(Mix())
+    try:
+        bytes = pickle.dumps(mix)
+        pickle.loads(bytes)
+    except Exception as ex:
+        pytest.fail(f"failed pickle mix. [{ex.__class.__name__}]: {ex}")
+
+
+def test_mix_json():
+    mix = generify(Mix())
+    try:
+        jtext = json.dumps(mix, cls=GenerifyJSONEncoder)
+        json.loads(jtext)
+    except Exception as ex:
+        pytest.fail(f"failed pickle mix. [{ex.__class__.__name__}]: {ex}")
+
+
 if __name__ == "__main__":
     ret = generify(
-        pd.DataFrame({"col1": [1, 2, 3], "col2": [10, 20, "30"]}),
+        NamedT(1, 2, 3),
+        # EnumA.A1,
         log=print,
     )
     print(ret)
