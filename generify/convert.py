@@ -13,6 +13,10 @@ class GenerifyException(Exception):
     pass
 
 
+class GenerifyGetAttrException(Exception):
+    pass
+
+
 def df_handler(df, path, log):
     is_simple_df = True
     for type in df.dtypes.tolist():
@@ -36,9 +40,16 @@ def df_handler(df, path, log):
         return df_ret
 
 
-def generify(obj, path=[], log=None, ids=None, raise_exception=False):
+def generify(obj, path=[], log=None, ids=None, raise_exception=False, raise_getattr_exception=False):
     def _generify(obj, path):
-        return generify(obj, path, log=log, ids=ids, raise_exception=raise_exception)
+        return generify(
+            obj,
+            path,
+            log=log,
+            ids=ids,
+            raise_exception=raise_exception,
+            raise_getattr_exception=raise_getattr_exception,
+        )
 
     unsupported = False
     is_rec = False
@@ -118,7 +129,12 @@ def generify(obj, path=[], log=None, ids=None, raise_exception=False):
             ret = dict()
             for k in keys:
                 kk = _generify(k, path + [f"key->{k}"])
-                v = getattr(obj, k)
+                try:
+                    v = getattr(obj, k)
+                except Exception as ex:
+                    if raise_getattr_exception:
+                        raise GenerifyGetAttrException(f"Failed getattr {path + [k]}") from ex
+                    v = f"Failed getattr, {ex.__class__.__name__}: {ex}"
                 if callable(v):
                     continue
                 ret_val = _generify(v, path + [k])
@@ -126,12 +142,16 @@ def generify(obj, path=[], log=None, ids=None, raise_exception=False):
         else:
             unsupported = True
     except Exception as ex:
+        # if getattr exception was raise keep perculating it
+        if isinstance(ex, GenerifyGetAttrException):
+            raise ex
+
         if raise_exception:
             # recursive exception catch
             if isinstance(ex, GenerifyException):
                 raise ex
             raise GenerifyException(f"Failed generify {path}") from ex
-        ret = f"Failed generify, Exception: {ex}"
+        ret = f"Failed generify, {ex.__class__.__name__}: {ex}"
 
     if unsupported:
         raise RuntimeError(f"Unsupported type '{type(obj)}', path: {path}.")
