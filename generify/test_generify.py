@@ -5,12 +5,11 @@ import pytest
 import json
 
 
-from generify import generify, GenerifyJSONEncoder, GenerifyException, GenerifyGetAttrException
+from generify import generify, GenerifyEncoder, GenerifyJSONEncoder, GenerifyException, GenerifyGetAttrException
 from generify.convert import TestException
 
 import numpy as np
 import pandas as pd
-from typing import NamedTuple
 
 
 class EnumA(Enum):
@@ -71,6 +70,29 @@ class Mix:
         }
 
 
+class MyRange:
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def __iter__(self):
+        return MyRangeIterator(self.start, self.end)
+
+
+class MyRangeIterator:
+    def __init__(self, start, end):
+        self.current = start
+        self.end = end
+
+    def __next__(self):
+        if self.current >= self.end:
+            raise StopIteration
+        else:
+            current = self.current
+            self.current += 1
+            return current
+
+
 def assert_dict_a(ret):
     assert ret[1] == 3
     assert ret["2"] == 4
@@ -115,6 +137,11 @@ def test_sets():
     val = [1, 10.3, (1, "2", True)]
     ret = generify(set(val))
     assert ret == set([*val])
+
+
+def test_iterable():
+    ret = generify(MyRange(1, 5))
+    assert ret == [1, 2, 3, 4]
 
 
 def test_namedtuple():
@@ -234,9 +261,22 @@ def test_mix_json():
         pytest.fail(f"failed pickle mix. [{ex.__class__.__name__}]: {ex}")
 
 
+class GenerifyCustomEncoder(GenerifyEncoder):
+    def default(self, obj, path):
+        if isinstance(obj, Scalar):
+            return "scalar"
+        else:
+            return GenerifyEncoder.default(self, obj, path)
+
+
+def test_custom_cls():
+    ret = generify({"a": 1, "b": Scalar()}, cls=GenerifyCustomEncoder)
+    assert ret == {"a": 1, "b": "scalar"}
+
+
 if __name__ == "__main__":
     ret = generify(
-        NamedT(1, 2, 3),
+        # NamedT(1, 2, 3),
         # EnumA.A1,
         log=print,
     )
