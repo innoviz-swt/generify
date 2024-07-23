@@ -91,7 +91,7 @@ def generify(obj, path=[], log=None, ids=None, raise_exception=False, raise_geta
             ret = [None] * len(obj)
             for i in range(len(obj)):
                 ret[i] = _generify(obj[i], path + [i])
-            ret = (obj._fields, tuple(ret))
+            ret = ("NamedTuple", obj._fields, tuple(ret))
         elif isinstance(obj, tuple):
             is_rec = True
             ret = [None] * len(obj)
@@ -117,7 +117,7 @@ def generify(obj, path=[], log=None, ids=None, raise_exception=False, raise_geta
             ret = obj
         elif isinstance(obj, Enum):
             # enum is converted to hashable type tuple
-            ret = (obj.name, obj.value)
+            ret = ("Enum", obj.name, obj.value)
         elif isinstance(obj, Iterable):
             is_rec = True
             ret = generify(list(obj), path, log=log, ids=ids)
