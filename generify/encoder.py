@@ -26,15 +26,21 @@ class GenerifyEncoder:
         self._raise_getattr_exception = raise_getattr_exception
 
     def df_handler(self, df, path):
-        is_simple_df = True
-        for type in df.dtypes.tolist():
-            if not np.issctype(type):
-                is_simple_df = False
+        is_index_obj = not np.issctype(df.index.dtype)
+
+        is_col_obj = False
+        for dtype in df.dtypes.tolist():
+            if not np.issctype(dtype):
+                is_col_obj = True
                 break
-        if is_simple_df:
+
+        if not is_col_obj and not is_index_obj:
             return df
-        else:
-            df_ret = df.copy()
+
+        df_ret = df.copy()
+        if is_index_obj:
+            df_ret.index = generify(df_ret.index.to_list(), path + ["df_index"])
+        if is_col_obj:
             for column in df_ret.columns:
                 if np.issctype(df_ret[column].dtypes):
                     if self._log:
@@ -45,7 +51,8 @@ class GenerifyEncoder:
                     res = self.default(df_ret[column][row], path + [column, i])
                     row_list.append(res)
                 df_ret[column] = row_list
-            return df_ret
+
+        return df_ret
 
     def default(self, obj, path: List[str]):
         unsupported = False

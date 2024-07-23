@@ -6,7 +6,7 @@ import json
 
 
 from generify import generify, GenerifyEncoder, GenerifyJSONEncoder, GenerifyException, GenerifyGetAttrException
-from generify.convert import TestException
+from generify.encoder import TestException
 
 import numpy as np
 import pandas as pd
@@ -183,11 +183,28 @@ def test_numpy_arr():
     assert isinstance(ret, np.ndarray)
 
 
-def test_dataframe():
-    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10, 20, "30"]})
+def test_scalar_dataframe():
+    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10.0, 20.0, 30.0]})
     ret = generify(val)
     assert pd.DataFrame.equals(val, ret)
     assert isinstance(ret, pd.DataFrame)
+
+
+def test_obj_dataframe():
+    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10, "20", Scalar()]})
+    ret = generify(val)
+    assert pd.DataFrame.equals(val, ret)
+    assert isinstance(ret, pd.DataFrame)
+    assert isinstance(ret["col2"][2], dict)
+
+
+def test_obj_index_dataframe():
+    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10, 20, 30]}, index=[1, 2, N1])
+    ret = generify(val)
+    assert pd.DataFrame.equals(val.reset_index(drop=True), ret.reset_index(drop=True))
+    assert isinstance(ret, pd.DataFrame)
+    assert val["col2"][N1] == 30
+    assert ret["col2"][GEN_N1] == 30
 
 
 def test_nested_object():
