@@ -229,7 +229,7 @@ def test_raise_exception():
     # exception
     with pytest.raises((GenerifyException)) as excinfo:
         generify({"a": [0, TestException()]}, raise_exception=True)
-    assert "Failed generify ['a', 1]" == str(excinfo.value)
+    assert "Failed generify 'TestException', path: ['a', 1]" == str(excinfo.value)
 
 
 class GetAttrTest:

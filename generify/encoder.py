@@ -39,7 +39,7 @@ class GenerifyEncoder:
 
         df_ret = df.copy()
         if is_index_obj:
-            df_ret.index = generify(df_ret.index.to_list(), path + ["df_index"])
+            df_ret.index = self.default(df_ret.index.to_list(), path + ["df_index"])
         if is_col_obj:
             for column in df_ret.columns:
                 if np.issctype(df_ret[column].dtypes):
@@ -151,7 +151,7 @@ class GenerifyEncoder:
                 # recursive exception catch
                 if isinstance(ex, GenerifyException):
                     raise ex
-                raise GenerifyException(f"Failed generify {path}") from ex
+                raise GenerifyException(f"Failed generify '{type(obj).__name__}', path: {path}") from ex
             ret = f"Failed generify, {ex.__class__.__name__}: {ex}"
 
         if unsupported:
