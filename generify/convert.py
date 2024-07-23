@@ -91,7 +91,7 @@ def generify(obj, path=[], log=None, ids=None, raise_exception=False, raise_geta
             ret = [None] * len(obj)
             for i in range(len(obj)):
                 ret[i] = _generify(obj[i], path + [i])
-            ret = obj.__class__(*ret)
+            ret = (obj._fields, tuple(ret))
         elif isinstance(obj, tuple):
             is_rec = True
             ret = [None] * len(obj)

@@ -21,7 +21,7 @@ GEN_A1 = ("A1", "a1_val")
 
 NamedT = namedtuple("NamedT", "aa bb cc")
 N1 = NamedT(1, 2, EnumA.A1)
-GEN_N1 = NamedT(1, 2, GEN_A1)
+GEN_N1 = (("aa", "bb", "cc"), (1, 2, GEN_A1))
 
 
 class Scalar:
@@ -120,8 +120,8 @@ def test_namedtuple():
     val_named = NamedT(0.5, (1, 2), Scalar())
 
     ret = generify(val_named)
-    assert ret == val_named
-    assert isinstance(ret.cc, dict)
+    assert ret == (("aa", "bb", "cc"), (0.5, (1, 2), Scalar()))
+    assert isinstance(ret[1][2], dict)
 
     assert generify(N1) == GEN_N1
 
