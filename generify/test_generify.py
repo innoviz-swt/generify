@@ -221,6 +221,15 @@ def test_circular_references():
     assert ret["ref"] == f"oid-{id(ref)}"
 
 
+def test_cache():
+    ref = {"x": 3}
+    ref = {"a1": ref, "a2": ref}
+    ret = generify(ref)
+    assert ret["a1"]["x"] == 3
+    assert ret["a2"]["x"] == 3
+    assert id(ret["a1"]) == id(ret["a2"])
+
+
 def test_raise_exception():
     # no exception
     ret = generify(TestException(), raise_exception=False)

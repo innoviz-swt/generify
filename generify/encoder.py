@@ -21,7 +21,8 @@ class GenerifyGetAttrException(Exception):
 class GenerifyEncoder:
     def __init__(self, log=None, raise_exception=False, raise_getattr_exception=False):
         self._log = log
-        self._ids = set()
+        self._circular_ids = set()
+        self._cache = dict()
         self._raise_exception = raise_exception
         self._raise_getattr_exception = raise_getattr_exception
 
@@ -55,14 +56,18 @@ class GenerifyEncoder:
         return df_ret
 
     def default(self, obj, path: List[str]):
+        oid = id(obj)
+        # check if item was previously generified
+        if oid in self._cache:
+            return self._cache[oid]
+
         unsupported = False
         is_rec = False
 
         # protect against circular dependency
-        oid = id(obj)
-        if oid in self._ids:
+        if oid in self._circular_ids:
             return f"oid-{oid}"
-        self._ids.add(oid)
+        self._circular_ids.add(oid)
 
         # handle obj type
         try:
@@ -161,7 +166,9 @@ class GenerifyEncoder:
             self._log(f"generify {path}: {ret}")
 
         # protect against circular dependency
-        self._ids.remove(oid)
+        self._circular_ids.remove(oid)
+
+        self._cache[oid] = ret
 
         return ret
 
