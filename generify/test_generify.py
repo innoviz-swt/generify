@@ -5,8 +5,8 @@ import pytest
 import json
 
 
-from generify import generify, GenerifyJSONEncoder, GenerifyException, GenerifyGetAttrException
-from generify.convert import TestException
+from generify import generify, GenerifyEncoder, GenerifyJSONEncoder, GenerifyException, GenerifyGetAttrException
+from generify.encoder import TestException
 
 import numpy as np
 import pandas as pd
@@ -17,11 +17,11 @@ class EnumA(Enum):
     B1 = 3
 
 
-GEN_A1 = ("A1", "a1_val")
+GEN_A1 = ("Enum", "A1", "a1_val")
 
 NamedT = namedtuple("NamedT", "aa bb cc")
 N1 = NamedT(1, 2, EnumA.A1)
-GEN_N1 = NamedT(1, 2, GEN_A1)
+GEN_N1 = ("NamedTuple", ("aa", "bb", "cc"), (1, 2, GEN_A1))
 
 
 class Scalar:
@@ -70,6 +70,29 @@ class Mix:
         }
 
 
+class MyRange:
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def __iter__(self):
+        return MyRangeIterator(self.start, self.end)
+
+
+class MyRangeIterator:
+    def __init__(self, start, end):
+        self.current = start
+        self.end = end
+
+    def __next__(self):
+        if self.current >= self.end:
+            raise StopIteration
+        else:
+            current = self.current
+            self.current += 1
+            return current
+
+
 def assert_dict_a(ret):
     assert ret[1] == 3
     assert ret["2"] == 4
@@ -116,12 +139,17 @@ def test_sets():
     assert ret == set([*val])
 
 
+def test_iterable():
+    ret = generify(MyRange(1, 5))
+    assert ret == [1, 2, 3, 4]
+
+
 def test_namedtuple():
     val_named = NamedT(0.5, (1, 2), Scalar())
 
     ret = generify(val_named)
-    assert ret == val_named
-    assert isinstance(ret.cc, dict)
+    assert ret == ("NamedTuple", ("aa", "bb", "cc"), (0.5, (1, 2), Scalar()))
+    assert isinstance(ret[2][2], dict)
 
     assert generify(N1) == GEN_N1
 
@@ -155,11 +183,28 @@ def test_numpy_arr():
     assert isinstance(ret, np.ndarray)
 
 
-def test_dataframe():
-    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10, 20, "30"]})
+def test_scalar_dataframe():
+    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10.0, 20.0, 30.0]})
     ret = generify(val)
     assert pd.DataFrame.equals(val, ret)
     assert isinstance(ret, pd.DataFrame)
+
+
+def test_obj_dataframe():
+    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10, "20", Scalar()]})
+    ret = generify(val)
+    assert pd.DataFrame.equals(val, ret)
+    assert isinstance(ret, pd.DataFrame)
+    assert isinstance(ret["col2"][2], dict)
+
+
+def test_obj_index_dataframe():
+    val = pd.DataFrame({"col1": [1, 2, 3], "col2": [10, 20, 30]}, index=[1, 2, N1])
+    ret = generify(val)
+    assert pd.DataFrame.equals(val.reset_index(drop=True), ret.reset_index(drop=True))
+    assert isinstance(ret, pd.DataFrame)
+    assert val["col2"][N1] == 30
+    assert ret["col2"][GEN_N1] == 30
 
 
 def test_nested_object():
@@ -184,7 +229,7 @@ def test_raise_exception():
     # exception
     with pytest.raises((GenerifyException)) as excinfo:
         generify({"a": [0, TestException()]}, raise_exception=True)
-    assert "Failed generify ['a', 1]" == str(excinfo.value)
+    assert "Failed generify 'TestException', path: ['a', 1]" == str(excinfo.value)
 
 
 class GetAttrTest:
@@ -233,9 +278,22 @@ def test_mix_json():
         pytest.fail(f"failed pickle mix. [{ex.__class__.__name__}]: {ex}")
 
 
+class GenerifyCustomEncoder(GenerifyEncoder):
+    def default(self, obj, path):
+        if isinstance(obj, Scalar):
+            return "scalar"
+        else:
+            return GenerifyEncoder.default(self, obj, path)
+
+
+def test_custom_cls():
+    ret = generify({"a": 1, "b": Scalar()}, cls=GenerifyCustomEncoder)
+    assert ret == {"a": 1, "b": "scalar"}
+
+
 if __name__ == "__main__":
     ret = generify(
-        NamedT(1, 2, 3),
+        # NamedT(1, 2, 3),
         # EnumA.A1,
         log=print,
     )
