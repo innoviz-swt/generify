@@ -304,6 +304,7 @@ if __name__ == "__main__":
     ret = generify(
         # NamedT(1, 2, 3),
         # EnumA.A1,
+        pd.DataFrame({"col1": [1, 2, 3], "col2": [10, 20, 30]}, index=[1, 2, N1]),
         log=print,
     )
     print(ret)

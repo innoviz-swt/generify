@@ -40,7 +40,7 @@ class GenerifyEncoder:
 
         df_ret = df.copy()
         if is_index_obj:
-            df_ret.index = self.default(df_ret.index.to_list(), path + ["df_index"])
+            df_ret.index = self.default(df.index, path + ["df_index"])
         if is_col_obj:
             for column in df_ret.columns:
                 if np.issctype(df_ret[column].dtypes):
@@ -48,8 +48,8 @@ class GenerifyEncoder:
                         self._log(f"generify {path + [column]}: {df_ret[column].dtypes}")
                     continue
                 row_list = []
-                for i, row in enumerate(df_ret.index):
-                    res = self.default(df_ret[column][row], path + [column, i])
+                for i, row in enumerate(df.index):
+                    res = self.default(df[column][row], path + [column, i])
                     row_list.append(res)
                 df_ret[column] = row_list
 
@@ -125,8 +125,10 @@ class GenerifyEncoder:
                 # enum is converted to hashable type tuple
                 ret = ("Enum", obj.name, obj.value)
             elif isinstance(obj, Iterable):
-                is_rec = False
-                ret = self.default(list(obj), path)
+                is_rec = True
+                ret = [None] * len(obj)
+                for i in range(len(obj)):
+                    ret[i] = self.default(obj[i], path + [i])
             elif isinstance(obj, TestException):
                 raise Exception("test exception")
             elif hasattr(obj, "__class__"):  # custom class, turn it into a dict
@@ -168,7 +170,8 @@ class GenerifyEncoder:
         # protect against circular dependency
         self._circular_ids.remove(oid)
 
-        self._cache[oid] = ret
+        if is_rec:
+            self._cache[oid] = ret
 
         return ret
 
