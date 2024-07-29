@@ -59,7 +59,7 @@ class GenerifyEncoder:
         oid = id(obj)
         # check if item was previously generified
         if oid in self._cache:
-            return self._cache[oid]
+            return self._cache[oid][0]
 
         unsupported = False
         is_rec = False
@@ -127,8 +127,8 @@ class GenerifyEncoder:
             elif isinstance(obj, Iterable):
                 is_rec = True
                 ret = [None] * len(obj)
-                for i in range(len(obj)):
-                    ret[i] = self.default(obj[i], path + [i])
+                for i, v in enumerate(obj):
+                    ret[i] = self.default(v, path + [i])
             elif isinstance(obj, TestException):
                 raise Exception("test exception")
             elif hasattr(obj, "__class__"):  # custom class, turn it into a dict
@@ -171,7 +171,7 @@ class GenerifyEncoder:
         self._circular_ids.remove(oid)
 
         if is_rec:
-            self._cache[oid] = ret
+            self._cache[oid] = (ret, obj)  # preserve obj (strong ref) in cache to persist oid
 
         return ret
 
