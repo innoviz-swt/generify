@@ -126,9 +126,9 @@ class GenerifyEncoder:
                 ret = ("Enum", obj.name, obj.value)
             elif isinstance(obj, Iterable):
                 is_rec = True
-                ret = [None] * len(obj)
+                ret = list()
                 for i, v in enumerate(obj):
-                    ret[i] = self.default(v, path + [i])
+                    ret.append(self.default(v, path + [i]))
             elif isinstance(obj, TestException):
                 raise Exception("test exception")
             elif hasattr(obj, "__class__"):  # custom class, turn it into a dict
