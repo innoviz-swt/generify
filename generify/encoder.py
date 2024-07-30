@@ -21,7 +21,8 @@ class GenerifyGetAttrException(Exception):
 class GenerifyEncoder:
     def __init__(self, log=None, raise_exception=False, raise_getattr_exception=False):
         self._log = log
-        self._ids = set()
+        self._circular_ids = set()
+        self._cache = dict()
         self._raise_exception = raise_exception
         self._raise_getattr_exception = raise_getattr_exception
 
@@ -39,7 +40,7 @@ class GenerifyEncoder:
 
         df_ret = df.copy()
         if is_index_obj:
-            df_ret.index = self.default(df_ret.index.to_list(), path + ["df_index"])
+            df_ret.index = self.default(df.index, path + ["df_index"])
         if is_col_obj:
             for column in df_ret.columns:
                 if np.issctype(df_ret[column].dtypes):
@@ -47,22 +48,26 @@ class GenerifyEncoder:
                         self._log(f"generify {path + [column]}: {df_ret[column].dtypes}")
                     continue
                 row_list = []
-                for i, row in enumerate(df_ret.index):
-                    res = self.default(df_ret[column][row], path + [column, i])
+                for i, row in enumerate(df.index):
+                    res = self.default(df[column][row], path + [column, i])
                     row_list.append(res)
                 df_ret[column] = row_list
 
         return df_ret
 
     def default(self, obj, path: List[str]):
+        oid = id(obj)
+        # check if item was previously generified
+        if oid in self._cache:
+            return self._cache[oid][0]
+
         unsupported = False
         is_rec = False
 
         # protect against circular dependency
-        oid = id(obj)
-        if oid in self._ids:
+        if oid in self._circular_ids:
             return f"oid-{oid}"
-        self._ids.add(oid)
+        self._circular_ids.add(oid)
 
         # handle obj type
         try:
@@ -120,8 +125,10 @@ class GenerifyEncoder:
                 # enum is converted to hashable type tuple
                 ret = ("Enum", obj.name, obj.value)
             elif isinstance(obj, Iterable):
-                is_rec = False
-                ret = self.default(list(obj), path)
+                is_rec = True
+                ret = list()
+                for i, v in enumerate(obj):
+                    ret.append(self.default(v, path + [i]))
             elif isinstance(obj, TestException):
                 raise Exception("test exception")
             elif hasattr(obj, "__class__"):  # custom class, turn it into a dict
@@ -161,7 +168,10 @@ class GenerifyEncoder:
             self._log(f"generify {path}: {ret}")
 
         # protect against circular dependency
-        self._ids.remove(oid)
+        self._circular_ids.remove(oid)
+
+        if is_rec:
+            self._cache[oid] = (ret, obj)  # preserve obj (strong ref) in cache to persist oid
 
         return ret
 

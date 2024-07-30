@@ -221,6 +221,15 @@ def test_circular_references():
     assert ret["ref"] == f"oid-{id(ref)}"
 
 
+def test_cache():
+    ref = {"x": 3}
+    ref = {"a1": ref, "a2": ref}
+    ret = generify(ref)
+    assert ret["a1"]["x"] == 3
+    assert ret["a2"]["x"] == 3
+    assert id(ret["a1"]) == id(ret["a2"])
+
+
 def test_raise_exception():
     # no exception
     ret = generify(TestException(), raise_exception=False)
@@ -295,6 +304,7 @@ if __name__ == "__main__":
     ret = generify(
         # NamedT(1, 2, 3),
         # EnumA.A1,
+        pd.DataFrame({"col1": [1, 2, 3], "col2": [10, 20, 30]}, index=[1, 2, N1]),
         log=print,
     )
     print(ret)
